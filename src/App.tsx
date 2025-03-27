@@ -31,6 +31,12 @@ function App() {
     }
   }, [searchTags]);
 
+  useEffect(() => {    
+    if (results.length > 0) {
+      fetchThumbnails(results);
+    }
+  }, [results]);
+
   const fetchResults = async () => {
     setLoading(true);
     try {
@@ -39,8 +45,6 @@ function App() {
       const data = await response.json();
       const dataHits = data.hits as HNHit[];
       setResults(dataHits);
-
-      await fetchThumbnails(dataHits);
 
     } catch (error) {
       console.error('Error fetching results:', error);
@@ -52,13 +56,11 @@ function App() {
   const fetchThumbnails = async (dataHits: HNHit[]) => {
     const existingThumbnails = JSON.parse(localStorage.getItem('thumbnails') || '{}');    
       const thumbnailsToFetch = dataHits.filter(hit => !existingThumbnails[hit.url]);
-      const newThumbnails = await Promise.all(
-        thumbnailsToFetch.map(async (hit: HNHit) => {
-          console.log(`Fetching thumbnail for ${hit.url}`);
-          const thumbnail = await getUrlThumbnail(hit.url);
-          return { [hit.url]: thumbnail };
-        })
-      );
+      const newThumbnails: { [key: string]: string | null }[] = [];
+      for (const hit of thumbnailsToFetch) {        
+        const thumbnail = await getUrlThumbnail(hit.url);
+        newThumbnails.push({ [hit.url]: thumbnail });
+      }
       const limitedSizeExistingThumbnails = Object.entries(existingThumbnails).slice(-50).reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
       const allThumbnails = { ...limitedSizeExistingThumbnails, ...Object.assign({}, ...newThumbnails) };      
       localStorage.setItem('thumbnails', JSON.stringify(allThumbnails));
